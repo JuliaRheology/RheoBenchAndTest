@@ -1,44 +1,43 @@
-using Test; using PyPlot; using Revise; using BenchmarkTools; using DSP;
+using Test; using PyPlot; using Revise; using BenchmarkTools; using AbstractFFTs;
 
-#= test modulus =#
-function mod2test(t, params)
-    return exp.(-t)
+#= test function without discontinuity in derivative at t=0 =#
+function funk1(x)
+  return (1/2)*x^2 + (1/3)*x^3 - (1/4)*x^4 
 end
 
-#= convolution convenience function =#
-function boltzconvolve(modulus, time_series, dt, prescribed_dot)
-    Modulus = modulus(time_series)
-    β = conv(Modulus, prescribed_dot)
-    β = β[1:length(time_series)]*dt
+function funk1dot(x)
+  return x + x^2 + -x^3
 end
 
-#= to test =#
-function noIndex_objective(params, modulus, time_series, dt, prescribed_dot, measured)
-    mod = (t->modulus(t,params))
-    convolved = boltzconvolve(mod, time_series, dt, prescribed_dot)
-    cost = sum((measured - convolved).^2)
-    return cost
+function funk2(x)
+  return x + (1/2)*x^2 - (1/3)*x^3
 end
 
-function Index_objective(params, modulus, time_series, dt, prescribed_dot, measured, indices)
-    mod = (t->modulus(t,params))
-    convolved = boltzconvolve(mod, time_series, dt, prescribed_dot)
-    cost = sum((measured - convolved[indices]).^2)
-    return cost
+function funk2dot(x)
+  return 1 + x - x^2
+end
+
+even(x) = x%2==0
+
+function spectralmultiplier(x)
+  N = length(x)
+  out = similar(x, Complex{Float64})
+  for k in 0:(N-1)
+    if k<(N/2)
+      out[k+1] = x[k+1]*2*π*im*k
+    
+    elseif k>(N/2)
+      out[k+1] = x[k+1]*2*π*im*(k-N)
+
+    end
+  end
+  if even(N); out[N÷2]=0.0; end
+  
+  return out
 end
 
 # get signal
-dt = 0.01
-t = Vector{Float64}(0.0:dt:1000.0)
-loading_derivative = -2*(t .- 50)
-exact_response = 102 .- 102*exp.(-t) .- 2t
-params = ones(5)
+dt = 0.1
+t = Vector{Float64}(0.0:dt:10.0)
 
-# to bench whether function needs to be specialised, use full range of indices
-indicestouse = collect(1:length(t))
-
-# in real code, can pass selected indices only
-exact_response_indices_only = exact_response[indicestouse]
-
-@btime noIndex_objective($params, $mod2test, $t, $dt, $loading_derivative, $exact_response)
-@btime Index_objective($params, $mod2test, $t, $dt, $loading_derivative, $exact_response_indices_only, $indicestouse)
+y = funk1.(t)
