@@ -1,4 +1,4 @@
-using Test; using PyPlot; using Revise; using BenchmarkTools; using AbstractFFTs;
+using Test; using PyPlot; using Revise; using BenchmarkTools; using AbstractFFTs; using FFTW;
 
 #= test function without discontinuity in derivative at t=0 =#
 function funk1(x)
@@ -6,7 +6,7 @@ function funk1(x)
 end
 
 function funk1dot(x)
-  return x + x^2 + -x^3
+  return x + x^2 - x^3
 end
 
 function funk2(x)
@@ -19,15 +19,15 @@ end
 
 even(x) = x%2==0
 
-function spectralmultiplier(x)
+function spectralmultiplier(x, L)
   N = length(x)
   out = similar(x, Complex{Float64})
   for k in 0:(N-1)
     if k<(N/2)
-      out[k+1] = x[k+1]*2*π*im*k
+      out[k+1] = x[k+1]*2*π*im*k/L
     
     elseif k>(N/2)
-      out[k+1] = x[k+1]*2*π*im*(k-N)
+      out[k+1] = x[k+1]*2*π*im*(k-N)/L
 
     end
   end
@@ -37,7 +37,13 @@ function spectralmultiplier(x)
 end
 
 # get signal
-dt = 0.1
-t = Vector{Float64}(0.0:dt:10.0)
+dt = 0.01
+t = Vector{Float64}(0.0:dt:8*pi)
+y = -cos.(t)
+yff = fft(y)
+yffdot = spectralmultiplier(yff, t[end])
+ydot_approx = real.(ifft(yffdot))
+ydot_exact = sin.(t)
+plot(t, ydot_exact)
+plot(t, ydot_approx, "--")
 
-y = funk1.(t)
