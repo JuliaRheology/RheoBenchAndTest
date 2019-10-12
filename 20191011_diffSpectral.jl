@@ -36,14 +36,18 @@ function spectralmultiplier(x, L)
   return out
 end
 
-# get signal
+function specdifftest(f, fdot)
+	yff = fft(f)
+	yffdot = spectralmultiplier(yff, t[end])
+	ydot_approx = real.(ifft(yffdot))
+	plot(t, fdot)
+	plot(t, ydot_approx, "--", alpha=0.2)
+  return
+end
+
 dt = 0.01
 t = Vector{Float64}(0.0:dt:8*pi)
-y = -cos.(t)
-yff = fft(y)
-yffdot = spectralmultiplier(yff, t[end])
-ydot_approx = real.(ifft(yffdot))
-ydot_exact = sin.(t)
-plot(t, ydot_exact)
-plot(t, ydot_approx, "--")
+#y = -cos.(t)
+#ydot = sin.(t)
 
+specdifftest(funk1.(t), funk1dot.(t))
