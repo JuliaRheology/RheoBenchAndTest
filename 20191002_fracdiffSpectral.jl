@@ -1,4 +1,4 @@
-using Revise; using BenchmarkTools; using DSP
+using AbstractFFTs; using FFTW; using PyPlot; using SpecialFunctions; using Revise
 
 #= test modulus =#
 function mod2test(t, params)
