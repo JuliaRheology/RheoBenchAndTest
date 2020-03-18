@@ -587,10 +587,21 @@ function SLSFunk1Gpp(ω; η, kᵦ, kᵧ)
     numerator/denominator
 end
 
-# function freeze_params(orig::RheoModelFunkNT, nt0::NamedTuple)
+function freeze_paramsNT(orig::RheoModelFunkNT, tofix::NamedTuple)
+    # some error checking, could be neatened up to show all incorrect parameters,
+    # not just first incorrect one it hits
+    for p in keys(tofix)
+        @assert !(p in keys(orig.fixed_params)) "Parameter $p is already fixed."
+        @assert (p in orig.free_params) "Parameter $p does not belong to the provided model."
+    end
 
-#     return RheoModelFunkNT(orig.name, , , orig.G, orig.J, orig.Gp, orig.Gpp)
-# end
+    # create new free symbols list without symbols about to be fixed
+    newfree =  Tuple([i for i in orig.free_params if !(i in keys(tofix))])
+    # combine previously fixed and newly fixed
+    newfixed = merge(orig.fixed_params, tofix)
+
+    return RheoModelFunkNT(orig.name, newfree, newfixed, orig.G, orig.J, orig.Gp, orig.Gpp)
+end
 
 function moduluswitharrayinput(t_or_ω::Vector{Float64}, numparams::Vector{Float64}, modulusfunc::Function, freeparams::Tuple, fixedargs::NamedTuple)
     freeargs = NamedTuple{freeparams}(numparams)
@@ -618,11 +629,6 @@ test_params_tuple = (η=1.0, kᵦ=1.0, kᵧ=1.0)
 test_params_symbols = (:η, :kᵦ, :kᵧ)
 no_fixed = NamedTuple{}()
 
-# TO BE REMOVED ONCE FIXING FUNCTION WRITTEN
-test_p_fixed = [1.0, 1.0];
-test_fixed_fixed = (kᵦ=1.0,)
-test_fixed_free = (:η, :kᵧ)
-
 println("Expressions and Function wrappers")
 @btime SLS_exp_fw.Ga($test_time, $test_params);
 
@@ -644,9 +650,9 @@ println("\nName tuple approach with calling wrapper function that would be used 
 @btime moduluswitharrayinput($test_time, $test_params, $SLSFunk.G, $test_params_symbols, $no_fixed)
 
 println("\nSame as above but with one parameter 'fixed'")
-@btime moduluswitharrayinput($test_time, $test_p_fixed, $SLSFunk.G, $test_fixed_free, $test_fixed_fixed)
+SLSFunk_1fixed = freeze_paramsNT(SLSFunk, (η=1.0,))
+@btime moduluswitharrayinput($test_time, [1.0, 1.0], $SLSFunk_1fixed.G, $SLSFunk_1fixed.free_params, $SLSFunk_1fixed.fixed_params)
 
 println("\n===============\n[Test Complete]\n===============")
-
 
 # note there is also one more option similar to named tuples but with an array wrapper function like seen on Julia discourse
