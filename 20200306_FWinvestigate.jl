@@ -620,6 +620,51 @@ SLSFunk = RheoModelFunkNT(
 
 #=
 =~-~=~-~=~-~=~-~=~-~=~-~=~-~=~-~=~-~=~-~=~-~=~-~=~-~=~-~=~-~=~-~=~-~=~-~=~-~=~-~=~-~=~-~=~-~=~-~=~-~=~-~=~-~=~-~=~-~=~-~=~-~=~-~=~-~=~-~=~-~=~-~=~-~=~-~=~-~#
+Defined as functions, named tuple arguements with wrapper function for optimisation, WITH CLOSURES ON FUNCTIONS
+SO THAT THEY BECOME SPECIALISED WITH EACH FIXING!
+=~-~=~-~=~-~=~-~=~-~=~-~=~-~=~-~=~-~=~-~=~-~=~-~=~-~=~-~=~-~=~-~=~-~=~-~=~-~=~-~=~-~=~-~=~-~=~-~=~-~=~-~=~-~=~-~=~-~=~-~=~-~=~-~=~-~=~-~=~-~=~-~=~-~=~-~=~-~#
+=#
+function RheoModelFunkNT(;name::String="Custom model", free::Tuple=(), fixed::NamedTuple=NamedTuple{}(), G, J, Gp, Gpp)
+   return(RheoModelFunkNT(name, free, fixed, G, J, Gp, Gpp))
+end
+
+function freeze_paramsNTclosure(orig::RheoModelFunkNT, tofix::NamedTuple)
+    # some error checking, could be neatened up to show all incorrect parameters,
+    # not just first incorrect one it hits
+    for p in keys(tofix)
+        @assert !(p in keys(orig.fixed_params)) "Parameter $p is already fixed."
+        @assert (p in orig.free_params) "Parameter $p does not belong to the provided model."
+    end
+
+    # create new free symbols list without symbols about to be fixed
+    newfree =  Tuple([i for i in orig.free_params if !(i in keys(tofix))])
+    # combine previously fixed and newly fixed
+    newfixed = merge(orig.fixed_params, tofix)
+
+    return RheoModelFunkNT(orig.name,
+                           newfree,
+                           newfixed,
+                           (t; kwargs...) -> orig.G(t; kwargs..., tofix...),
+                           (t; kwargs...) -> orig.J(t; kwargs..., tofix...),
+                           (ω; kwargs...) -> orig.Gp(ω; kwargs..., tofix...),
+                           (ω; kwargs...) -> orig.Gpp(ω; kwargs..., tofix...))
+end
+
+function moduluswitharrayinputNTclosure(t_or_ω::Vector{Float64}, numparams::Vector{Float64}, modulusfunc::Function, freeparams::Tuple, fixedargs::NamedTuple)
+    freeargs = NamedTuple{freeparams}(numparams)
+    modulusfunc.(t_or_ω; freeargs...)
+end
+
+SLSFunkNTclosure = RheoModelFunkNT(
+          name="SLSFunk",
+          free = (:η, :kᵦ, :kᵧ),
+          G = SLSFunk1G,
+          J = SLSFunk1J,
+          Gp = SLSFunk1Gp,
+          Gpp = SLSFunk1Gpp)
+
+#=
+=~-~=~-~=~-~=~-~=~-~=~-~=~-~=~-~=~-~=~-~=~-~=~-~=~-~=~-~=~-~=~-~=~-~=~-~=~-~=~-~=~-~=~-~=~-~=~-~=~-~=~-~=~-~=~-~=~-~=~-~=~-~=~-~=~-~=~-~=~-~=~-~=~-~=~-~=~-~#
 Benchmarking
 =~-~=~-~=~-~=~-~=~-~=~-~=~-~=~-~=~-~=~-~=~-~=~-~=~-~=~-~=~-~=~-~=~-~=~-~=~-~=~-~=~-~=~-~=~-~=~-~=~-~=~-~=~-~=~-~=~-~=~-~=~-~=~-~=~-~=~-~=~-~=~-~=~-~=~-~=~-~#
 =#
@@ -629,29 +674,46 @@ test_params_tuple = (η=1.0, kᵦ=1.0, kᵧ=1.0)
 test_params_symbols = (:η, :kᵦ, :kᵧ)
 no_fixed = NamedTuple{}()
 
-println("Expressions and Function wrappers")
-@btime SLS_exp_fw.Ga($test_time, $test_params);
+less_named_params=(kᵦ=1.0, kᵧ=1.0)
+less_params=[1.0,1.0]
 
-println("\nExpressions and Functions")
-@btime SLS_exp_NOFW.Ga($test_time, $test_params);
+# println("Expressions and Function wrappers")
+# @btime SLS_exp_fw.Ga($test_time, $test_params);
 
-println("\nJust functions predefined (no freezing capability)")
-@btime SLS_exp_NOFWNOEXP.Ga($test_time, $test_params);
+# println("\nExpressions and Functions")
+# @btime SLS_exp_NOFW.Ga($test_time, $test_params);
 
-println("\nGeneric struct that can accept functions or functionwrappers (functions tested first then FW)")
-@btime SLS_exp_GENERIC.Ga($test_time, $test_params);
-@btime SLS_exp_GENERIC_fw.Ga($test_time, $test_params);
-println("note another option is to have two different structs and all functions accept both... They interact with RHEOS in the same way so should be fine...")
+# println("\nJust functions predefined (no freezing capability)")
+# @btime SLS_exp_NOFWNOEXP.Ga($test_time, $test_params);
 
-println("\nNamed tuple approach, testing function directly...")
-@btime SLSFunk.G.($test_time; $test_params_tuple...)
+# println("\nGeneric struct that can accept functions or functionwrappers (functions tested first then FW)")
+# @btime SLS_exp_GENERIC.Ga($test_time, $test_params);
+# @btime SLS_exp_GENERIC_fw.Ga($test_time, $test_params);
+# println("note another option is to have two different structs and all functions accept both... They interact with RHEOS in the same way so should be fine...")
 
-println("\nName tuple approach with calling wrapper function that would be used from optimiser")
-@btime moduluswitharrayinput($test_time, $test_params, $SLSFunk.G, $test_params_symbols, $no_fixed)
+# println("\nNamed tuple approach, testing function directly...")
+# @btime SLSFunk.G.($test_time; $test_params_tuple...)
 
-println("\nSame as above but with one parameter 'fixed'")
-SLSFunk_1fixed = freeze_paramsNT(SLSFunk, (η=1.0,))
-@btime moduluswitharrayinput($test_time, [1.0, 1.0], $SLSFunk_1fixed.G, $SLSFunk_1fixed.free_params, $SLSFunk_1fixed.fixed_params)
+# println("\nName tuple approach with calling wrapper function that would be used from optimiser")
+# @btime moduluswitharrayinput($test_time, $test_params, $SLSFunk.G, $test_params_symbols, $no_fixed)
+
+# println("\nSame as above but with one parameter 'fixed'")
+# SLSFunk_1fixed = freeze_paramsNT(SLSFunk, (η=1.0,))
+# @btime moduluswitharrayinput($test_time, $less_params, $SLSFunk_1fixed.G, $SLSFunk_1fixed.free_params, $SLSFunk_1fixed.fixed_params)
+
+####################################################################################################
+println("\nNAMED TUPLE APPROACH WITH CLOSURES TO SPECIALISE MODULI - BEST SOLUTION - JUST MODULI")
+@btime SLSFunkNTclosure.G.($test_time; $test_params_tuple...)
+
+println("\nNAMED TUPLE APPROACH WITH CLOSURES TO SPECIALISE MODULI - BEST SOLUTION - JUST MODULI FIXED")
+SLSFunkNTclosure_1fixed = freeze_paramsNTclosure(SLSFunkNTclosure, (η=1.0,))
+@btime SLSFunkNTclosure_1fixed.G.($test_time; $less_named_params...)
+
+# println("\nNAMED TUPLE APPROACH WITH CLOSURES TO SPECIALISE MODULI - BEST SOLUTION - FROM ARRAY")
+# @btime moduluswitharrayinput($test_time, $test_params, $SLSFunkNTclosure.G, $test_params_symbols, $no_fixed)
+
+# println("\nNAMED TUPLE APPROACH WITH CLOSURES TO SPECIALISE MODULI - BEST SOLUTION - FROM ARRAY FIXED")
+# @btime moduluswitharrayinput($test_time, $less_params, $SLSFunkNTclosure_1fixed.G, $SLSFunkNTclosure_1fixed.free_params, $SLSFunkNTclosure_1fixed.fixed_params)
 
 println("\n===============\n[Test Complete]\n===============")
 
