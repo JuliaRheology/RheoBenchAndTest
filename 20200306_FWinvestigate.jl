@@ -553,13 +553,7 @@ struct RheoModelFunkNT
 end
 
 function RheoModelFunkNT(;name::String="Custom model", free::Tuple=(), fixed::NamedTuple=NamedTuple{}(), G, J, Gp, Gpp)
-   return(RheoModelFunkNT(name, 
-                         free,
-                         fixed,
-                         G,
-                         J,
-                         Gp,
-                         Gpp))
+   return(RheoModelFunkNT(name, free, fixed, G, J, Gp, Gpp))
 end
 
 function SLSFunk1G(t; η, kᵦ, kᵧ)
@@ -624,10 +618,6 @@ Defined as functions, named tuple arguements with wrapper function for optimisat
 SO THAT THEY BECOME SPECIALISED WITH EACH FIXING!
 =~-~=~-~=~-~=~-~=~-~=~-~=~-~=~-~=~-~=~-~=~-~=~-~=~-~=~-~=~-~=~-~=~-~=~-~=~-~=~-~=~-~=~-~=~-~=~-~=~-~=~-~=~-~=~-~=~-~=~-~=~-~=~-~=~-~=~-~=~-~=~-~=~-~=~-~=~-~#
 =#
-function RheoModelFunkNT(;name::String="Custom model", free::Tuple=(), fixed::NamedTuple=NamedTuple{}(), G, J, Gp, Gpp)
-   return(RheoModelFunkNT(name, free, fixed, G, J, Gp, Gpp))
-end
-
 function freeze_paramsNTclosure(orig::RheoModelFunkNT, tofix::NamedTuple)
     # some error checking, could be neatened up to show all incorrect parameters,
     # not just first incorrect one it hits
@@ -641,13 +631,20 @@ function freeze_paramsNTclosure(orig::RheoModelFunkNT, tofix::NamedTuple)
     # combine previously fixed and newly fixed
     newfixed = merge(orig.fixed_params, tofix)
 
-    return RheoModelFunkNT(orig.name,
-                           newfree,
-                           newfixed,
-                           (t; kwargs...) -> orig.G(t; kwargs..., tofix...),
-                           (t; kwargs...) -> orig.J(t; kwargs..., tofix...),
-                           (ω; kwargs...) -> orig.Gp(ω; kwargs..., tofix...),
-                           (ω; kwargs...) -> orig.Gpp(ω; kwargs..., tofix...))
+    G = let tofix=tofix; orig=orig;
+            (t0; kwargs0...) -> orig.G(t0; kwargs0..., tofix...)
+    end
+    J = let tofix=tofix; orig=orig;
+            (t0; kwargs0...) -> orig.J(t0; kwargs0..., tofix...)
+    end
+    Gp = let tofix=tofix; orig=orig;
+            (t0; kwargs0...) -> orig.Gp(t0; kwargs0..., tofix...)
+    end
+    Gpp = let tofix=tofix; orig=orig;
+            (t0; kwargs0...) -> orig.Gpp(t0; kwargs0..., tofix...)
+    end
+
+    return RheoModelFunkNT(orig.name, newfree, newfixed, G, J, Gp, Gpp)
 end
 
 function moduluswitharrayinputNTclosure(t_or_ω::Vector{Float64}, numparams::Vector{Float64}, modulusfunc::Function, freeparams::Tuple, fixedargs::NamedTuple)
@@ -703,17 +700,18 @@ less_params=[1.0,1.0]
 
 ####################################################################################################
 println("\nNAMED TUPLE APPROACH WITH CLOSURES TO SPECIALISE MODULI - BEST SOLUTION - JUST MODULI")
-@btime SLSFunkNTclosure.G.($test_time; $test_params_tuple...)
+@btime SLSFunkNTclosure.G.($test_time; (η=1.0, kᵦ=1.0, kᵧ=1.0)...)
 
 println("\nNAMED TUPLE APPROACH WITH CLOSURES TO SPECIALISE MODULI - BEST SOLUTION - JUST MODULI FIXED")
 SLSFunkNTclosure_1fixed = freeze_paramsNTclosure(SLSFunkNTclosure, (η=1.0,))
-@btime SLSFunkNTclosure_1fixed.G.($test_time; $less_named_params...)
+@btime SLSFunkNTclosure_1fixed.G.($test_time; (kᵦ=1.0, kᵧ=1.0)...)
 
 # println("\nNAMED TUPLE APPROACH WITH CLOSURES TO SPECIALISE MODULI - BEST SOLUTION - FROM ARRAY")
 # @btime moduluswitharrayinput($test_time, $test_params, $SLSFunkNTclosure.G, $test_params_symbols, $no_fixed)
 
 # println("\nNAMED TUPLE APPROACH WITH CLOSURES TO SPECIALISE MODULI - BEST SOLUTION - FROM ARRAY FIXED")
 # @btime moduluswitharrayinput($test_time, $less_params, $SLSFunkNTclosure_1fixed.G, $SLSFunkNTclosure_1fixed.free_params, $SLSFunkNTclosure_1fixed.fixed_params)
+######################################################################################################
 
 println("\n===============\n[Test Complete]\n===============")
 
