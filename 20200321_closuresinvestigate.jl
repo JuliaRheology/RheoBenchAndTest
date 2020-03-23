@@ -19,9 +19,9 @@ using Revise;
 # @btime L1_fromglob(0; $lastkwargs...) # 108.332 ns (2 allocations: 80 bytes)
 # @btime L1(0; $lastkwargs...) # 1.205 ns (0 allocations: 0 bytes)
 
-#########################################################################################
+########################################################################################
 # TESTING ALL THE DIFFERENT CASES...
-#########################################################################################
+########################################################################################
 # function L0(arg1; kwarg1, kwarg2, kwarg3, kwarg4)
 #     arg1 + kwarg1 + kwarg2 + kwarg3 + kwarg4
 # end
@@ -30,8 +30,8 @@ using Revise;
 #     (arg1; kwargz...) -> func_to_freeze(arg1; kwargz..., params_to_freeze...)
 # end
 
-# function freezeparams_let(func_to_freeze, params_to_freeze)
-#     f = let params_to_freeze = params_to_freeze
+# function freezeparams_let(func_to_freeze::T, params_to_freeze::NamedTuple) where T<:Function
+#     f = let func_to_freeze=func_to_freeze, params_to_freeze=params_to_freeze, arg1, kwargs, kwarg1, kwarg2, kwarg3, kwarg4
 #         (arg1; kwargs...) -> func_to_freeze(arg1; kwargs..., params_to_freeze...)
 #     end
 #     f
@@ -44,14 +44,8 @@ using Revise;
 # L1_FP_WITHARG_GLOBAL(arg1; kwargs...) = freezeparams(L0, firstkwargs)
 # L1_FP_WITHARG_INTERP(arg1; kwargs...) = freezeparams(L0, (kwarg1=1, kwarg2=2))
 
-# L1_FP_NOARG_GLOBAL = freezeparams(L0, firstkwargs)
-# L1_FP_NOARG_INTERP = freezeparams(L0, (kwarg1=1, kwarg2=2))
-
 # L1_FPL_WITHARG_GLOBAL(arg1; kwargs...) = freezeparams_let(L0, firstkwargs)
 # L1_FPL_WITHARG_INTERP(arg1; kwargs...) = freezeparams_let(L0, (kwarg1=1, kwarg2=2))
-
-# L1_FPL_NOARG_GLOBAL = freezeparams_let(L0, firstkwargs)
-# L1_FPL_NOARG_INTERP = freezeparams_let(L0, (kwarg1=1, kwarg2=2))
 
 # println("\nReference case with no freezing")
 # @btime L0(0; $allkwargs...) # 1.205 ns (0 allocations: 0 bytes)
@@ -62,23 +56,11 @@ using Revise;
 # println("\nL1_FP_WITHARG_INTERP")
 # @btime L1_FP_WITHARG_INTERP(0; $lastkwargs...) # 1.506 ns (0 allocations: 0 bytes)
 
-# println("\nL1_FP_NOARG_GLOBAL")
-# @btime L1_FP_NOARG_GLOBAL(0; $lastkwargs...) # 43.997 ns (1 allocation: 32 bytes)
-
-# println("\nL1_FP_NOARG_INTERP")
-# @btime L1_FP_NOARG_INTERP(0; $lastkwargs...) # 43.092 ns (1 allocation: 32 bytes)
-
 # println("\nL1_FPL_WITHARG_GLOBAL")
 # @btime L1_FPL_WITHARG_GLOBAL(0; $lastkwargs...) # 269.493 ns (2 allocations: 64 bytes)
 
 # println("\nL1_FPL_WITHARG_INTERP")
 # @btime L1_FPL_WITHARG_INTERP(0; $lastkwargs...) # 1.506 ns (0 allocations: 0 bytes)
-
-# println("\nL1_FPL_NOARG_GLOBAL")
-# @btime L1_FPL_NOARG_GLOBAL(0; $lastkwargs...) # 42.490 ns (1 allocation: 32 bytes)
-
-# println("\nL1_FPL_NOARG_INTERP")
-# @btime L1_FPL_NOARG_INTERP(0; $lastkwargs...) # 42.490 ns (1 allocation: 32 bytes)
 
 # println("\ntest done\n")
 
@@ -116,37 +98,41 @@ using Revise;
 #########################################################################################
 # Try overload get property/field operators for struct.
 #########################################################################################
-import Base.getproperty
+# import Base.getproperty
 
-struct thingy{T<:Function}
-    free_params::Tuple
-    fixed_params::NamedTuple
-    a::T
-end
+# struct thingy{T<:Function}
+#     free_params::Tuple
+#     fixed_params::NamedTuple
+#     a::T
+# end
 
-function Base.getproperty(inst::thingy, sym::Symbol)
-    if sym==:a
-        return (t; kwargs...) -> getfield(inst, sym)(t; kwargs..., inst.fixed_params...)
-    elseif sym==:free_params || sym==:fixed_params
-        return getfield(inst, sym)
-    end
-end
+# function Base.getproperty(inst::thingy, sym::Symbol)
+#     if sym==:a
+#         f = let inst::thingy=inst, sym::Symbol=sym, getfield=getfield, fixed::NamedTuple=inst.fixed_params, t::Float64, kwargs::NamedTuple
+#                 (t; kwargs...) -> getfield(inst, sym)(t; kwargs..., fixed...)
+#             end
+#         return f
+#     elseif sym==:free_params || sym==:fixed_params
+#         return getfield(inst, sym)
+#     end
+# end
 
-function freezeparams(orig::thingy, tofix::NamedTuple)
-    newfree =  Tuple([i for i in orig.free_params if !(i in keys(tofix))])
-    newfixed = merge(orig.fixed_params, tofix)
-    return thingy(newfree, newfixed, orig.a)
-end
+# function freezeparams(orig::thingy, tofix::NamedTuple)
+#     newfree =  Tuple([i for i in orig.free_params if !(i in keys(tofix))])
+#     newfixed = merge(orig.fixed_params, tofix)
+#     return thingy(newfree, newfixed, orig.a)
+# end
 
-function funk1(t; a, b, c)
-    t+a+b+c
-end
+# function funk1(t; a, b, c)
+#     t+a+b+c
+# end
 
-const pars = (a=1,b=2,c=3)
-const spars = (b=2,c=3)
+# t1 = thingy((:a, :b, :c), NamedTuple{}(), funk1)
+# t2 = freezeparams(t1, (a=1,))
 
-const t1 = thingy((:a, :b, :c), NamedTuple{}(), funk1)
-const t2 = freezeparams(t1, (a=1,))
+# tarray = collect(0.0:0.01:1000);
 
-@btime t1.a(0.0; a=1, b=2, c=3)
-@btime t2.a(0.0; b=2, c=3)
+# @btime t1.a.($tarray; a=1, b=2, c=3);
+# @btime t2.a.($tarray; b=2, c=3);
+
+# println("\nDone")
