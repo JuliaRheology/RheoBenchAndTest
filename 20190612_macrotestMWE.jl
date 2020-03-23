@@ -47,5 +47,5 @@ t1 = ftest()
 t2 = @mtest
 
 #println("Function")
-@btime t1.Ga($testvector, $params)
-@btime t2.Ga($testvector, $params)
+@btime t1.Ga($testvector, $params) # 8.739 μs (3 allocations: 78.30 KiB)
+@btime t2.Ga($testvector, $params) # 8.437 μs (3 allocations: 78.30 KiB)
