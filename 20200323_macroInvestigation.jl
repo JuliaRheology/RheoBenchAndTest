@@ -56,13 +56,13 @@ function localscopetesting()
 
     #=
     RESULTS
-    
+
     NOTE THAT IF YOU ARE DECLARING WITH THE GLOBAL PREFIX ABOVE
     YOU NEED TO RESTART JULIA SEESIONS IN BETWEEN TESTS TO CLEAR
     VARIABLES IN THE GLOBAL SCOPE.
 
     FW1 (FunctionWrappers) works without declaring a global (FunctionWrapper compiled within current world age)
-    FUF (Functions from expressions with @eval return) only works if you declare them global
+    FUF (Functions from expressions with @eval return) only works if you declare them global because @eval escapes to global scope and back
     FUM Works fine because it is literally a macro expansion that happens at parse time, no need to declare global
     =#
 end
