@@ -9,7 +9,7 @@ function G_single(t::T, params::Vector{T}) where T<:Real
 
    G₀, G₁, η₁, G₂, η₂ = params
 
-   G = G₀ + G₁*exp(-t*G₁/η₁) + G₂*exp(-t*G₂/η₂)
+   G₀ + G₁*exp(-G₁/η₁*t) + G₂*exp(-G₂/η₂*t)
 
 end
 
@@ -17,7 +17,7 @@ function G_vec(t::Vector{T}, params::Vector{T}) where T<:Real
     
    G₀, G₁, η₁, G₂, η₂ = params
 
-   G = G₀ .+ G₁*exp.(-t*G₁/η₁) .+ G₂*exp.(-t*G₂/η₂)
+   G₀ .+ G₁ .* exp.(-G₁./η₁.*t) .+ G₂.*exp.(-G₂./η₂.*t)
 
 end
 
@@ -35,7 +35,10 @@ end
 t = collect(0.0:0.1:10000)
 params = [1.0, 1.0, 1.0, 1.0, 1.0]
 
-@btime G_single.($t, $(params,)) # 2.195 ms (2 allocations: 781.39 KiB)
-@btime broadcast($G_single, $t, $(params,)) # 2.016 ms (2 allocations: 781.39 KiB)
-@btime [G_single(ti, $params) for ti in $t] # 1.996 ms (2 allocations: 781.39 KiB)
-@btime G_loop($t, $params) # 1.967 ms (2 allocations: 781.39 KiB)
+@btime G_single.($t, $(params,)) 				# 1.971 ms (2 allocations: 781.39 KiB)		
+@btime broadcast($G_single, $t, $(params,)) 	# 1.869 ms (2 allocations: 781.39 KiB)
+@btime [G_single(ti, $params) for ti in $t]		# 1.887 ms (2 allocations: 781.39 KiB)
+@btime G_vec($t, $params) 						# 1.587 ms (2 allocations: 781.39 KiB)
+@btime G_loop($t, $params) 						# 1.880 ms (2 allocations: 781.39 KiB)
+
+nothing
