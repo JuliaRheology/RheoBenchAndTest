@@ -35,8 +35,7 @@ end
 t = collect(0.0:0.1:10000)
 params = [1.0, 1.0, 1.0, 1.0, 1.0]
 
-# @btime G_single.($t, $(params,))
-# @btime broadcast($G_single, $t, $(params,))
-# @btime [G_single(ti, $params) for ti in $t]
-# @btime map(G_single, t, (params,))
-# @btime G_loop($t, $params)
+@btime G_single.($t, $(params,)) # 2.195 ms (2 allocations: 781.39 KiB)
+@btime broadcast($G_single, $t, $(params,)) # 2.016 ms (2 allocations: 781.39 KiB)
+@btime [G_single(ti, $params) for ti in $t] # 1.996 ms (2 allocations: 781.39 KiB)
+@btime G_loop($t, $params) # 1.967 ms (2 allocations: 781.39 KiB)
