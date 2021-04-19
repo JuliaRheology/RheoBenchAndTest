@@ -214,3 +214,31 @@ println("Dynamic modulus")
 println(builddynamicexpr(defzener))
 
 
+
+#=
+
+=====================
+Maxwell model
+=====================
+Differential equation (cost function)
+η * dϵdt - (η * dσdt + k * σ)
+Relaxation modulus
+(η * s) / (s * (η * s + k))
+Creep compliance
+(η * s + k) / (s * (η * s))
+Dynamic modulus
+(η * (im * ω)) / (η * (im * ω) + k)
+=====================
+Fract Zener model
+=====================
+Differential equation (cost function)
+((((cₐ * cᵧ) / cᵦ) * dᵅdtᵅ(ϵ, (α + γ) - β) + cᵧ * dᵅdtᵅ(ϵ, γ)) + cₐ * dᵅdtᵅ(ϵ, α)) - (σ + (cₐ / cᵦ) * dᵅdtᵅ(σ, α - β))
+Relaxation modulus
+((((cₐ * cᵧ) / cᵦ) * s ^ ((α + γ) - β) + cᵧ * s ^ γ) + cₐ * s ^ α) / (s * (1 + (cₐ / cᵦ) * s ^ (α - β)))
+Creep compliance
+(1 + (cₐ / cᵦ) * s ^ (α - β)) / (s * ((((cₐ * cᵧ) / cᵦ) * s ^ ((α + γ) - β) + cᵧ * s ^ γ) + cₐ * s ^ α))
+Dynamic modulus
+((((cₐ * cᵧ) / cᵦ) * (im * ω) ^ ((α + γ) - β) + cᵧ * (im * ω) ^ γ) + cₐ * (im * ω) ^ α) / (1 + (cₐ / cᵦ) * (im * ω) ^ (α - β))
+
+
+=#
