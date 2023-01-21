@@ -53,10 +53,46 @@ ccall(pfw3, Float64, (Float64, Vector{Float64}), t, params_numbers)
 @btime fw3.f($t, $params_numbers)
 @btime ccall($pfw3, Float64, (Float64, Vector{Float64}), $t, $params_numbers)
 
+function DM_expectfail(p::Array{Symbol}, G::Expr)
+    unpack_expr = Meta.parse(string(join(string.(p), ","), ",=params"))
+    anonf = @eval ((t, params) -> begin $unpack_expr; $G; end)
+    anonf
+end
+
+function thang()
+  sls_l  = quote k0 + k1*exp((-t*k1) / η) end
+
+  #! works ok
+  fw3_l  = DM3([:k0, :k1, :η], sls_l)
+  pfw3_l = Base.unsafe_convert(Ptr{Cvoid}, fw3)
+  ccall(pfw3_l, Float64, (Float64, Vector{Float64}), t, params_numbers)
+
+  #! fails as expected
+  #fw3_l  = DM_expectfail([:k0, :k1, :η], sls_l)
+  #fw3_l(t, params_numbers)
+
+  #! try get same interface as funcwrapper
+  #! fails as well with world age
+  #ffw3_l = fw3_l.f
+  #ffw3_l(t, params_numbers)
+
+  #! try via wrapper
+  ffw3 = (t, params_numbers) -> ccall(pfw3_l, Float64, (Float64, Vector{Float64}), t, params_numbers)
+end
+
+wrapped = thang()
+
+@btime wrapped($t, $params_numbers)
+
+# looks like we would need the `unsafe_convert` and a wrapper
+# to get this to work with a similar interface to that currently
+# used
+
 #= Results
-264.072 ns (2 allocations: 32 bytes)
-260.172 ns (2 allocations: 32 bytes)
-261.272 ns (2 allocations: 32 bytes)
-92.461 ns (2 allocations: 32 bytes)
-56.028 ns (2 allocations: 32 bytes)
+  262.908 ns (2 allocations: 32 bytes)
+  263.174 ns (2 allocations: 32 bytes)
+  263.205 ns (2 allocations: 32 bytes)
+  100.000 ns (2 allocations: 32 bytes)
+  58.359 ns (2 allocations: 32 bytes)
+  99.367 ns (4 allocations: 64 bytes)
 =#
