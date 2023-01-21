@@ -52,3 +52,11 @@ ccall(pfw3, Float64, (Float64, Vector{Float64}), t, params_numbers)
 @btime fw2($t, $params_numbers)
 @btime fw3.f($t, $params_numbers)
 @btime ccall($pfw3, Float64, (Float64, Vector{Float64}), $t, $params_numbers)
+
+#= Results
+264.072 ns (2 allocations: 32 bytes)
+260.172 ns (2 allocations: 32 bytes)
+261.272 ns (2 allocations: 32 bytes)
+92.461 ns (2 allocations: 32 bytes)
+56.028 ns (2 allocations: 32 bytes)
+=#
