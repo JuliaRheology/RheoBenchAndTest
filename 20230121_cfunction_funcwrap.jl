@@ -96,3 +96,6 @@ wrapped = thang()
   58.359 ns (2 allocations: 32 bytes)
   99.367 ns (4 allocations: 64 bytes)
 =#
+
+# https://github.com/JuliaLang/julia/pull/32737
+# may be of interest as well.
