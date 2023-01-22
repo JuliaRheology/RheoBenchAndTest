@@ -67,6 +67,8 @@ fw1(t, params_numbers)
 fw2(t, params_numbers)
 fw3.f(t, params_numbers)
 ccall(pfw3, Float64, (Float64, Vector{Float64}), t, params_numbers)
+fw4(t, params_numbers)
+fw5(t, params_numbers)
 
 @btime fw0($t, $params_numbers)
 @btime fw1($t, $params_numbers)
