@@ -30,7 +30,7 @@ function DM3(p::Array{Symbol}, G::Expr)
       (Float64, Vector{Float64}))
 end
 
-
+# This one leads to world age problems
 function DM4(p::Array{Symbol}, G::Expr)
     unpack_expr = Meta.parse(string(join(string.(p), ","), ",=params"))
     anonf = @eval ((t, params) -> begin $unpack_expr; $G; end)
@@ -39,6 +39,14 @@ function DM4(p::Array{Symbol}, G::Expr)
       Float64,
       (Float64, Vector{Float64})).f
 end
+
+# Seems to avoid world age problem?
+function DM5(p::Array{Symbol}, G::Expr)
+    unpack_expr = Meta.parse(string(join(string.(p), ","), ",=params"))
+    anonf = @eval ((t, params) -> begin $unpack_expr; $G; end)
+    (t, params_numbers) -> ccall( @cfunction(  $anonf,  Float64, (Float64, Vector{Float64})).ptr , Float64, (Float64, Vector{Float64}), t, params_numbers)
+end
+
 
 
 sls = quote k0 + k1*exp((-t*k1) / η) end
@@ -49,6 +57,7 @@ fw2  = DM2([:k0, :k1, :η], sls)
 fw3  = DM3([:k0, :k1, :η], sls)
 pfw3 = Base.unsafe_convert(Ptr{Cvoid}, fw3)
 fw4  = DM4([:k0, :k1, :η], sls)
+fw5  = DM5([:k0, :k1, :η], sls)
 
 t = 1.0
 params_numbers = [2.0, 3.0, 5.0]
@@ -65,6 +74,20 @@ ccall(pfw3, Float64, (Float64, Vector{Float64}), t, params_numbers)
 @btime fw3.f($t, $params_numbers)
 @btime ccall($pfw3, Float64, (Float64, Vector{Float64}), $t, $params_numbers)
 @btime fw4($t, $params_numbers)
+@btime fw5($t, $params_numbers)
+
+
+# World age issue test
+# Works with DM0, DM1, DM2 (i.e. functionwrappers) and DM5
+function f()
+         sls_l  = quote k0 + k1*exp((-t*k1) / η) end
+         fw  = DM5([:k0, :k1, :η], sls_l)
+         fw(t,params_numbers)
+       end
+
+f()
+
+
 
 function DM_expectfail(p::Array{Symbol}, G::Expr)
     unpack_expr = Meta.parse(string(join(string.(p), ","), ",=params"))
@@ -102,13 +125,15 @@ wrapped = thang()
 # used
 
 #= Results
-  168.115 ns (2 allocations: 32 bytes)
-  167.376 ns (2 allocations: 32 bytes)
-  171.422 ns (2 allocations: 32 bytes)
-  51.157 ns (2 allocations: 32 bytes)
-  31.122 ns (2 allocations: 32 bytes)
-  28.861 ns (2 allocations: 32 bytes)
-  51.294 ns (4 allocations: 64 bytes)
+  169.623 ns (2 allocations: 32 bytes)
+  167.598 ns (2 allocations: 32 bytes)
+  171.513 ns (2 allocations: 32 bytes)
+  51.449 ns (2 allocations: 32 bytes)
+  30.158 ns (2 allocations: 32 bytes)
+  27.826 ns (2 allocations: 32 bytes)
+  30.664 ns (2 allocations: 32 bytes)
+  51.280 ns (4 allocations: 64 bytes)
+
 =#
 
 # https://github.com/JuliaLang/julia/pull/32737
